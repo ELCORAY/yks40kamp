@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YKS 40 Günlük Kamp Takipçisi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #0f1117; color: #e2e8f0; }
+
+    /* Custom checkbox */
+    .custom-checkbox {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #475569;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .custom-checkbox:checked {
+      background: #22c55e;
+      border-color: #22c55e;
+    }
+    .custom-checkbox:checked::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 2px;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .custom-checkbox:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* Topic row states */
+    .topic-row { transition: all 0.2s ease; border-radius: 8px; padding: 12px; margin: 0 -12px; }
+    .topic-row.fully-complete {
+      border-left: 3px solid #22c55e;
+      padding-left: 15px;
+      margin-left: -15px;
+      background: rgba(34, 197, 94, 0.04);
+    }
+    .topic-row.fully-complete .topic-name {
+      text-decoration: line-through;
+      opacity: 0.55;
+    }
+
+    /* Glass nav */
+    .glass-nav {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(15, 17, 23, 0.88);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* Day cards */
+    .day-card {
+      transition: all 0.25s ease;
+      background: linear-gradient(145deg, #1a1d27 0%, #161922 100%);
+    }
+    .day-card:hover { transform: translateY(-3px); }
+    .day-card.completed {
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.25);
+    }
+    .day-card.today {
+      border-color: #4f8ef7;
+      box-shadow: 0 0 0 1px rgba(79, 142, 247, 0.3), 0 4px 20px rgba(79, 142, 247, 0.1);
+    }
+    .day-card.missed {
+      border-color: rgba(239, 68, 68, 0.2);
+      background: linear-gradient(145deg, #1a1d27 0%, rgba(239,68,68,0.04) 100%);
+    }
+
+    /* Subject card sparkle */
+    @keyframes sparkle {
+      0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+      30% { box-shadow: 0 0 25px 4px rgba(251, 191, 36, 0.15); }
+      100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+    }
+    .subject-sparkle { animation: sparkle 1.2s ease-out; }
+
+    /* Celebration banner */
+    .celebration-banner {
+      position: fixed;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-150%);
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      padding: 14px 36px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      z-index: 90;
+      transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 12px 40px rgba(34, 197, 94, 0.35);
+      pointer-events: none;
+    }
+    .celebration-banner.show { transform: translateX(-50%) translateY(0); }
+
+    /* Streak pulse */
+    @keyframes streakPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+    .streak-pulse { animation: streakPulse 2s infinite ease-in-out; }
+
+    /* Progress bar transition */
+    .progress-bar-fill { transition: width 0.5s ease; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0f1117; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Confetti canvas */
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 80;
+      display: none;
+    }
+
+    /* Collapsible sections */
+    .chevron { transition: transform 0.3s ease; }
+    .chevron.rotated { transform: rotate(180deg); }
+
+    /* Onboarding */
+    .onboarding-bg {
+      background: radial-gradient(ellipse at top, #1a1d27 0%, #0f1117 70%);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Celebration Banner -->
+  <div id="celebration-banner" class="celebration-banner hidden">Gün Tamamlandı! 🎉</div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- ==================== ONBOARDING ==================== -->
+  <div id="onboarding-screen" class="fixed inset-0 z-[100] onboarding-bg flex items-center justify-center p-4 hidden">
+    <div class="max-w-md w-full bg-[#1a1d27] rounded-2xl border border-gray-800 p-8 shadow-2xl">
+      <div class="text-center mb-8">
+        <div class="text-5xl mb-4">🎯</div>
+        <h1 class="text-2xl font-bold text-white mb-2">YKS 40 Günlük Kamp</h1>
+        <p class="text-gray-400">Üniversite hayalin için 40 günlük disiplinli çalışma programı.</p>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Kamp Başlangıç Tarihinizi Girin</label>
+          <input type="date" id="onboarding-date" class="w-full bg-[#0f1117] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
+        </div>
+        <button onclick="handleSetStartDate()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all active:scale-[0.98]">
+          Kampı Başlat 🚀
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== COUNTDOWN ==================== -->
+  <div id="countdown-screen" class="fixed inset-0 z-[50] onboarding-bg flex items-center justify-center p-4 hidden">
+    <div class="text-center">
+      <div class="text-6xl mb-6">🚀</div>
+      <h2 class="text-3xl font-bold text-white mb-3">Kamp Yakında Başlıyor!</h2>
+      <p class="text-gray-400 mb-8 text-lg">Başlangıç: <span id="countdown-date" class="text-blue-400 font-medium"></span></p>
+      <div class="text-7xl font-bold text-blue-500 mb-2" id="countdown-days">0</div>
+      <p class="text-gray-500 text-lg">gün kaldı</p>
+      <button onclick="openSettings()" class="mt-8 text-sm text-gray-500 hover:text-gray-300 underline">Başlangıç tarihini değiştir</button>
+    </div>
+  </div>
+
+  <!-- ==================== COMPLETION ==================== -->
+  <div id="completion-screen" class="fixed inset-0 z-[50] onboarding-bg flex items-center justify-center p-4 hidden">
+    <div class="max-w-2xl w-full text-center">
+      <div class="text-7xl mb-6">🎉</div>
+      <h2 class="text-4xl font-bold text-white mb-4">40 Günlük Kamp Tamamlandı!</h2>
+      <p class="text-gray-400 mb-10 text-lg">Tebrikler! Bu zorlu süreci tamamladın. YKS'de başarılar dileriz!</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-5">
+          <div class="text-3xl font-bold text-green-400 mb-1" id="comp-topics">0</div>
+          <div class="text-sm text-gray-500">Konu Tamamlandı</div>
+        </div>
+        <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-5">
+          <div class="text-3xl font-bold text-blue-400 mb-1" id="comp-days">0</div>
+          <div class="text-sm text-gray-500">Çalışma Günü</div>
+        </div>
+        <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-5">
+          <div class="text-3xl font-bold text-orange-400 mb-1" id="comp-streak">0</div>
+          <div class="text-sm text-gray-500">En İyi Seri</div>
+        </div>
+        <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-5">
+          <div class="text-3xl font-bold text-purple-400 mb-1" id="comp-pct">0%</div>
+          <div class="text-sm text-gray-500">Tamamlanma</div>
+        </div>
+      </div>
+      <button onclick="openSettings()" class="bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-xl transition-colors">
+        ⚙️ Ayarlar
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN APP ==================== -->
+  <div id="main-app" class="min-h-screen hidden">
+    <!-- Top Navigation -->
+    <nav class="glass-nav sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🎯</span>
+          <span class="font-bold text-white hidden sm:inline">YKS Kamp</span>
+        </div>
+        <div class="flex items-center bg-[#1a1d27] rounded-xl p-1 border border-gray-800">
+          <button id="nav-today" onclick="switchView('today')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-blue-600 text-white">
+            ÇALIŞ
+          </button>
+          <button id="nav-overview" onclick="switchView('overview')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+            GENEL
+          </button>
+          <button id="nav-report" onclick="switchView('report')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+            RAPOR
+          </button>
+        </div>
+        <button onclick="openSettings()" class="p-2 rounded-xl hover:bg-gray-800 transition-colors text-gray-400 hover:text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-6 pb-20">
+      <!-- ========== TODAY VIEW ========== -->
+      <div id="today-view">
+        <!-- Header -->
+        <div class="mb-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+            <div class="flex items-center gap-3">
+              <button onclick="changeActiveDay(-1)" class="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors active:scale-95" title="Önceki Gün">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <h1 class="text-3xl font-bold text-white whitespace-nowrap">📅 Gün <span id="today-day-num">0</span> / 40</h1>
+              <button onclick="changeActiveDay(1)" class="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors active:scale-95" title="Sonraki Gün">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+            <div id="streak-badge" class="inline-flex items-center gap-2 bg-orange-500/10 text-orange-400 px-4 py-2 rounded-full text-sm font-semibold border border-orange-500/20 w-fit">
+              <span id="streak-icon">💪</span>
+              <span id="streak-text">Seriyi Başlat!</span>
+            </div>
+          </div>
+          <p class="text-gray-400" id="today-date">-</p>
+        </div>
+
+        <!-- Overall Progress -->
+        <div class="mb-6 bg-[#1a1d27] rounded-xl p-5 border border-gray-800">
+          <div class="flex justify-between text-sm mb-2">
+            <span class="text-gray-400">Genel İlerleme</span>
+            <span class="font-semibold text-white" id="overall-progress-text">%0</span>
+          </div>
+          <div class="h-2.5 bg-gray-800 rounded-full overflow-hidden">
+            <div id="overall-progress-bar" class="progress-bar-fill h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Daily Quote -->
+        <div class="mb-6 bg-blue-500/5 border border-blue-500/15 rounded-xl p-5">
+          <p class="text-blue-300 text-center italic text-base leading-relaxed" id="daily-quote">"-"</p>
+        </div>
+
+        <!-- Subject Cards Container -->
+        <div id="today-subjects" class="space-y-4"></div>
+
+        <!-- Tomorrow Preview -->
+        <div class="mt-8" id="tomorrow-section"></div>
+
+        <!-- Activity Log -->
+        <div class="mt-8 bg-[#1a1d27] rounded-xl border border-gray-800 overflow-hidden">
+          <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-[#1e2130] transition-colors" onclick="toggleActivityLog()">
+            <h3 class="font-medium text-gray-300 flex items-center gap-2">
+              <span>📋</span> Bugünkü Aktiviteler
+            </h3>
+            <svg id="activity-chevron" class="chevron w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <div id="activity-log-content" class="hidden px-4 pb-4">
+            <div class="space-y-2 max-h-64 overflow-y-auto" id="activity-log-entries">
+              <p class="text-sm text-gray-600 italic">Bugün henüz aktivite yok.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== OVERVIEW VIEW ========== -->
+      <div id="overview-view" class="hidden">
+        <!-- Stats Summary -->
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold text-white mb-5">Kamp Özeti</h2>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-4 text-center">
+              <div class="text-2xl font-bold text-green-400 mb-1" id="stat-topics">0</div>
+              <div class="text-xs text-gray-500">Konu Tamamlandı</div>
+            </div>
+            <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-4 text-center">
+              <div class="text-2xl font-bold text-blue-400 mb-1" id="stat-study-days">0</div>
+              <div class="text-xs text-gray-500">Çalışma Günü</div>
+            </div>
+            <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-4 text-center">
+              <div class="text-2xl font-bold text-orange-400 mb-1" id="stat-current-streak">0</div>
+              <div class="text-xs text-gray-500">Mevcut Seri</div>
+            </div>
+            <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-4 text-center">
+              <div class="text-2xl font-bold text-purple-400 mb-1" id="stat-best-streak">0</div>
+              <div class="text-xs text-gray-500">En İyi Seri</div>
+            </div>
+            <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-4 flex items-center justify-center">
+              <div class="relative w-16 h-16">
+                <svg class="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                  <circle cx="32" cy="32" r="26" stroke="#1e2130" stroke-width="6" fill="none"/>
+                  <circle id="stat-ring" cx="32" cy="32" r="26" stroke="#4f8ef7" stroke-width="6" fill="none" stroke-dasharray="163.36" stroke-dashoffset="163.36" stroke-linecap="round" class="transition-all duration-700"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <span class="text-sm font-bold" id="stat-pct">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Days Grid -->
+        <h2 class="text-xl font-bold text-white mb-4">Tüm Günler</h2>
+        <div id="days-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+
+      <!-- ========== REPORT VIEW ========== -->
+      <div id="report-view" class="hidden">
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold text-white mb-2">📊 Raporlar</h2>
+          <p class="text-gray-400 text-sm">Haftalık ve ders bazlı çalışma performansı.</p>
+        </div>
+        <div id="weekly-reports"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== DAY DETAIL MODAL ==================== -->
+  <div id="day-modal" class="fixed inset-0 z-[60] hidden">
+    <div class="modal-backdrop absolute inset-0" onclick="closeDayModal()"></div>
+    <div class="absolute inset-x-4 top-[5%] md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-2xl bg-[#1a1d27] rounded-2xl border border-gray-800 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="sticky top-0 bg-[#1a1d27] border-b border-gray-800 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+        <div>
+          <h3 class="text-xl font-bold text-white" id="modal-title">Gün 1</h3>
+          <p class="text-sm text-gray-500" id="modal-date">-</p>
+        </div>
+        <button onclick="closeDayModal()" class="p-2 rounded-xl hover:bg-gray-800 transition-colors text-gray-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6">
+        <div id="modal-subjects" class="space-y-5"></div>
+        <div class="mt-6 pt-6 border-t border-gray-800">
+          <h4 class="font-medium text-gray-300 mb-3">📋 Gün Aktiviteleri</h4>
+          <div class="space-y-2 max-h-48 overflow-y-auto" id="modal-log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SETTINGS MODAL ==================== -->
+  <div id="settings-modal" class="fixed inset-0 z-[60] hidden">
+    <div class="modal-backdrop absolute inset-0" onclick="closeSettings()"></div>
+    <div class="absolute inset-x-4 top-[10%] md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md bg-[#1a1d27] rounded-2xl border border-gray-800 shadow-2xl">
+      <div class="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-white">⚙️ Ayarlar</h3>
+        <button onclick="closeSettings()" class="p-2 rounded-xl hover:bg-gray-800 transition-colors text-gray-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Başlangıç Tarihi</label>
+          <input type="date" id="settings-start-date" class="w-full bg-[#0f1117] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+          <button onclick="handleChangeStartDate()" class="mt-2 w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-600/30 font-medium py-2.5 rounded-xl transition-colors text-sm">
+            Başlangıç Tarihini Güncelle
+          </button>
+        </div>
+        <div class="border-t border-gray-800 pt-6">
+          <button onclick="handleResetProgress()" class="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 font-medium py-3 rounded-xl transition-colors mb-3">
+            🔄 Tüm İlerlemeyi Sıfırla
+          </button>
+          <button onclick="handleFullReset()" class="w-full bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 font-medium py-3 rounded-xl transition-colors">
+            🗑️ Uygulamayı Tamamen Sıfırla
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    // ==================== DATA ====================
+    const CAMP_DATA = [
+      {"day":1,"tasks":[{"subject":"Matematik","topic":"Fonksiyonlar 1"},{"subject":"Matematik","topic":"Fonksiyonlar 2"},{"subject":"Matematik","topic":"Fonksiyonlar 3"},{"subject":"Fizik","topic":"Nehir Problemleri - 1"},{"subject":"Fizik","topic":"Nehir Problemleri - 2 (Soru Çözümü)"},{"subject":"Fizik","topic":"Newton'un Hareket Yasaları - 1"},{"subject":"Fizik","topic":"Newton'un Hareket Yasaları - 2"},{"subject":"Biyoloji","topic":"Nöron Yapısı ve İmpuls İletimi"},{"subject":"Biyoloji","topic":"Beyin"}]},
+      {"day":2,"tasks":[{"subject":"Matematik","topic":"Fonksiyonlar 4"},{"subject":"Matematik","topic":"Fonksiyonlar 5"},{"subject":"Matematik","topic":"Fonksiyonlar 6"},{"subject":"Fizik","topic":"Newton'un Hareket Yasaları - 3"},{"subject":"Fizik","topic":"Newton'un Hareket Yasaları - 4 (Sürtünme Kuvveti)"},{"subject":"Fizik","topic":"Newton'un Hareket Yasaları - 5 (Eğik Düzlem)"},{"subject":"Kimya","topic":"AYT Kimya - Çözücü ve Çözünen Etkileşimleri"}]},
+      {"day":3,"tasks":[{"subject":"Matematik","topic":"Fonksiyonlar 7"},{"subject":"Matematik","topic":"Fonksiyonlar 8"},{"subject":"Matematik","topic":"Fonksiyonlar 9"},{"subject":"Matematik","topic":"Fonksiyonlar 10"},{"subject":"Matematik","topic":"Fonksiyonlar BB Testi"},{"subject":"Kimya","topic":"AYT Kimya - Derişim Birimleri"},{"subject":"Kimya","topic":"AYT Kimya - Molar Derişim (Molarite)"},{"subject":"Biyoloji","topic":"Omurilik ve Çevresel Sinir Sistemi"},{"subject":"Biyoloji","topic":"Endokrin Sistem - Hormonlar"}]},
+      {"day":4,"tasks":[{"subject":"Matematik","topic":"2. Dereceden Denklemler 1"},{"subject":"Matematik","topic":"2. Dereceden Denklemler 2"},{"subject":"Matematik","topic":"2. Dereceden Denklemler 3"},{"subject":"Fizik","topic":"Dinamik Soru Çözümü - 1"},{"subject":"Fizik","topic":"Dinamik Soru Çözümü - 2"},{"subject":"Fizik","topic":"Dinamik İleri Seviye Soru Çözümü"},{"subject":"Biyoloji","topic":"Hipofiz Bezi"},{"subject":"Biyoloji","topic":"Tiroit Paratiroit Bezi"}]},
+      {"day":5,"tasks":[{"subject":"Matematik","topic":"2. Dereceden Denklemler 4"},{"subject":"Matematik","topic":"2. Dereceden Denklemler 5"},{"subject":"Matematik","topic":"2. Dereceden Denklemler 6"},{"subject":"Fizik","topic":"Atışlar - Serbest Düşme 1"},{"subject":"Fizik","topic":"Atışlar - Serbest Düşme 2"},{"subject":"Fizik","topic":"Aşağıdan Yukarıya Düşey Atış"},{"subject":"Fizik","topic":"Yukarıdan Aşağıya Düşey Atış"},{"subject":"Kimya","topic":"AYT Kimya - Çözeltinin Karıştırılması"},{"subject":"Kimya","topic":"AYT Kimya - Tepkime Çözeltilerin Karıştırılması"}]},
+      {"day":6,"tasks":[{"subject":"Matematik","topic":"2. Dereceden Denklemler 7"},{"subject":"Matematik","topic":"2. Dereceden Denklemler 8"},{"subject":"Matematik","topic":"2. Dereceden Denklemler BB Testi"},{"subject":"Kimya","topic":"AYT Kimya - Koligatif Özellikler"},{"subject":"Kimya","topic":"AYT Kimya - Çözeltilerin Sınıflandırılması"},{"subject":"Biyoloji","topic":"Böbrek Üstü Bezi Pankreas"},{"subject":"Biyoloji","topic":"Eşeysel Bezler ve Diğer Hormonlar"}]},
+      {"day":7,"tasks":[{"subject":"Matematik","topic":"Parabol 1"},{"subject":"Matematik","topic":"Parabol 2"},{"subject":"Matematik","topic":"Parabol 3"},{"subject":"Matematik","topic":"Parabol 4"},{"subject":"Fizik","topic":"Yatay Atış Hareketi - 1"},{"subject":"Fizik","topic":"Yatay Atış Hareketi - 2"},{"subject":"Fizik","topic":"Eğik Atış Hareketi - 1"},{"subject":"Fizik","topic":"Eğik Atış Hareketi - 2"},{"subject":"Fizik","topic":"Atışlar Genel Soru Çözümü"},{"subject":"Biyoloji","topic":"Göz - Duyu Organları"},{"subject":"Biyoloji","topic":"Kulak - Duyu Organları"}]},
+      {"day":8,"tasks":[{"subject":"Matematik","topic":"Parabol 5"},{"subject":"Matematik","topic":"Parabol 6"},{"subject":"Matematik","topic":"Parabol 7"},{"subject":"Fizik","topic":"İş, Güç, Enerji - Temel Kavramlar"},{"subject":"Fizik","topic":"Kinetik ve Potansiyel Enerji"},{"subject":"Fizik","topic":"Esneklik Potansiyel Enerjisi (Yaylar)"},{"subject":"Kimya","topic":"AYT Kimya - Çözünürlük"},{"subject":"Kimya","topic":"AYT Kimya - Çözünürlüğe Etki Eden Faktörler"}]},
+      {"day":9,"tasks":[{"subject":"Matematik","topic":"Parabol 8"},{"subject":"Matematik","topic":"Parabol 9"},{"subject":"Matematik","topic":"Parabol BB Testi"},{"subject":"Kimya","topic":"AYT Kimya - Kimyasal Tepkimelerde Enerji"},{"subject":"Kimya","topic":"AYT Kimya - Standart Oluşum Entalpisi"},{"subject":"Biyoloji","topic":"Burun Dil Deri"},{"subject":"Biyoloji","topic":"Kemik Doku"}]},
+      {"day":10,"tasks":[{"subject":"Matematik","topic":"Eşitsizlikler 1"},{"subject":"Matematik","topic":"Eşitsizlikler 2"},{"subject":"Matematik","topic":"Eşitsizlikler 3"},{"subject":"Fizik","topic":"Mekanik Enerjinin Korunumu - 1"},{"subject":"Fizik","topic":"Mekanik Enerjinin Korunumu - 2"},{"subject":"Fizik","topic":"Sürtünmeli Sistemlerde Enerji"},{"subject":"Fizik","topic":"Enerji Soru Çözümü - 1"},{"subject":"Fizik","topic":"Enerji Soru Çözümü - 2"},{"subject":"Biyoloji","topic":"Kıkırdak ve Kas Doku"},{"subject":"Biyoloji","topic":"Kas Kasılma Mekanizması"}]},
+      {"day":11,"tasks":[{"subject":"Matematik","topic":"Eşitsizlikler 4"},{"subject":"Matematik","topic":"Eşitsizlikler 5"},{"subject":"Matematik","topic":"Eşitsizlikler 6"},{"subject":"Matematik","topic":"Eşitsizlikler 7"},{"subject":"Fizik","topic":"İtme ve Çizgisel Momentum Giriş"},{"subject":"Fizik","topic":"İtme ve Momentum İlişkisi"},{"subject":"Fizik","topic":"Çizgisel Momentumun Korunumu - 1"},{"subject":"Fizik","topic":"Çizgisel Momentumun Korunumu - 2"},{"subject":"Kimya","topic":"AYT Kimya - Bağ Enerjileri ve Hess Yasası"}]},
+      {"day":12,"tasks":[{"subject":"Matematik","topic":"Eşitsizlikler 8"},{"subject":"Matematik","topic":"Eşitsizlikler 9"},{"subject":"Matematik","topic":"Eşitsizlikler BB Testi"},{"subject":"Kimya","topic":"AYT Kimya - Tepkime Hızları"},{"subject":"Kimya","topic":"AYT Kimya - Tepkime Hızını Etkileyen Faktörler 1"},{"subject":"Biyoloji","topic":"Sindirim Organları"},{"subject":"Biyoloji","topic":"Karaciğer Pankreas Safra Kesesi"}]},
+      {"day":13,"tasks":[{"subject":"Matematik","topic":"Logaritma 1"},{"subject":"Matematik","topic":"Logaritma 2"},{"subject":"Matematik","topic":"Logaritma 3"},{"subject":"Fizik","topic":"Patlamalar ve Momentum"},{"subject":"Fizik","topic":"Momentum Soru Çözümü - 1"},{"subject":"Fizik","topic":"Momentum Soru Çözümü - 2"},{"subject":"Fizik","topic":"Esnek Çarpışmalar - 1 (Merkezi)"},{"subject":"Fizik","topic":"Esnek Çarpışmalar - 2 (Merkezi Olmayan)"},{"subject":"Biyoloji","topic":"Kimyasal Sindirim"},{"subject":"Biyoloji","topic":"Emilim Sindirim Hastalıkları"}]},
+      {"day":14,"tasks":[{"subject":"Matematik","topic":"Logaritma 4"},{"subject":"Matematik","topic":"Logaritma 5"},{"subject":"Matematik","topic":"Logaritma 6"},{"subject":"Fizik","topic":"Esnek Olmayan Çarpışmalar"},{"subject":"Fizik","topic":"Çarpışmalar Soru Çözümü - 1"},{"subject":"Fizik","topic":"Çarpışmalar Soru Çözümü - 2"},{"subject":"Fizik","topic":"Tork (Moment) - 1"},{"subject":"Fizik","topic":"Tork (Moment) - 2"},{"subject":"Kimya","topic":"AYT Kimya - Tepkime Hızını Etkileyen Faktörler 2"},{"subject":"Kimya","topic":"AYT Kimya - Kimyasal Tepkirmede Hız"}]},
+      {"day":15,"tasks":[{"subject":"Matematik","topic":"Logaritma 7"},{"subject":"Matematik","topic":"Logaritma 8"},{"subject":"Matematik","topic":"Logaritma 9"},{"subject":"Kimya","topic":"AYT Kimya - Kimyasal Denge"},{"subject":"Kimya","topic":"AYT Kimya - Denge Sabitleri"},{"subject":"Biyoloji","topic":"Kalp"},{"subject":"Biyoloji","topic":"Atar Toplar Kılcal Damar Kan Dolaşımı"}]},
+      {"day":16,"tasks":[{"subject":"Matematik","topic":"Logaritma 10"},{"subject":"Matematik","topic":"Logaritma 11"},{"subject":"Matematik","topic":"Logaritma BB Testi"},{"subject":"Fizik","topic":"Paralel Kuvvetlerin Bileşkesi"},{"subject":"Fizik","topic":"Tork Soru Çözümü - 1"},{"subject":"Fizik","topic":"Tork Soru Çözümü - 2"},{"subject":"Fizik","topic":"Denge Şartları (Kesişen Kuvvetler) - 1"},{"subject":"Fizik","topic":"Lami Teoremi"},{"subject":"Biyoloji","topic":"Kan Yapısı ve Lenf Dolaşımı"},{"subject":"Biyoloji","topic":"Bağışıklık Sistemi"}]},
+      {"day":17,"tasks":[{"subject":"Matematik","topic":"Diziler 1"},{"subject":"Matematik","topic":"Diziler 2"},{"subject":"Matematik","topic":"Diziler 3"},{"subject":"Fizik","topic":"Denge Soru Çözümü"},{"subject":"Fizik","topic":"Kütle ve Ağırlık Merkezi - 1"},{"subject":"Fizik","topic":"Kütle ve Ağırlık Merkezi - 2"},{"subject":"Fizik","topic":"Parça Çıkarma/Ekleme Problemleri"},{"subject":"Fizik","topic":"Kütle Merkezi Soru Çözümü"},{"subject":"Kimya","topic":"AYT Kimya - Kimyasal Dengeye Etki Eden Faktörler"}]},
+      {"day":18,"tasks":[{"subject":"Matematik","topic":"Diziler 4"},{"subject":"Matematik","topic":"Diziler 5"},{"subject":"Matematik","topic":"Diziler 6"},{"subject":"Kimya","topic":"AYT Kimya - Sulu Çözeltiler - Asitler ve Bazlar"},{"subject":"Kimya","topic":"AYT Kimya - Sulu Çözeltiler - Asit ve Baz Tanımları"},{"subject":"Biyoloji","topic":"Solunum Sistemi - Solunum Organları"},{"subject":"Biyoloji","topic":"Solunum Gazlarının Taşınması"}]},
+      {"day":19,"tasks":[{"subject":"Matematik","topic":"Diziler 7"},{"subject":"Matematik","topic":"Diziler 8"},{"subject":"Matematik","topic":"Diziler BB Testi"},{"subject":"Fizik","topic":"Basit Makineler - Kaldıraçlar ve Makaralar"},{"subject":"Fizik","topic":"Palangalar"},{"subject":"Fizik","topic":"Eğik Düzlem ve Çıkrık"},{"subject":"Fizik","topic":"Vida ve Dişli Çarklar"},{"subject":"Fizik","topic":"Basit Makineler Genel Soru Çözümü"},{"subject":"Biyoloji","topic":"Böbrek Yapısı - Üriner Sistem"},{"subject":"Biyoloji","topic":"İdrar Oluşumu - Üriner Sistem"}]},
+      {"day":20,"tasks":[{"subject":"Matematik","topic":"Limit ve Süreklilik 1"},{"subject":"Matematik","topic":"Limit ve Süreklilik 2"},{"subject":"Matematik","topic":"Limit ve Süreklilik 3"},{"subject":"Matematik","topic":"Limit ve Süreklilik 4"},{"subject":"Fizik","topic":"Elektriksel Kuvvet (Coulomb Yasası) - 1"},{"subject":"Fizik","topic":"Elektriksel Kuvvet - 2"},{"subject":"Fizik","topic":"Elektriksel Kuvvet Soru Çözümü"},{"subject":"Fizik","topic":"Elektrik Alan - 1"},{"subject":"Fizik","topic":"Elektrik Alan Çizgileri"},{"subject":"Kimya","topic":"AYT Kimya - Zayıf Asit ve Zayıf Baz Çözeltilerinde pH ve pOH"},{"subject":"Kimya","topic":"AYT Kimya - Nötralleşme Tepkimeleri"}]},
+      {"day":21,"tasks":[{"subject":"Matematik","topic":"Limit ve Süreklilik 5"},{"subject":"Matematik","topic":"Limit ve Süreklilik 6"},{"subject":"Matematik","topic":"Limit ve Süreklilik 7"},{"subject":"Matematik","topic":"Limit ve Süreklilik 8"},{"subject":"Kimya","topic":"AYT Kimya - Asit Baz Titrasyonu ve Tampon Çözeltiler"},{"subject":"Kimya","topic":"AYT Kimya - Çözünürlük Dengesi"},{"subject":"Biyoloji","topic":"Üriner Sistem Genel Tekrar"},{"subject":"Biyoloji","topic":"Erkek ve Dişi Üreme Sistemi"}]},
+      {"day":22,"tasks":[{"subject":"Matematik","topic":"Limit ve Süreklilik 9"},{"subject":"Matematik","topic":"Limit ve Süreklilik 10"},{"subject":"Matematik","topic":"Limit ve Süreklilik 11"},{"subject":"Fizik","topic":"Elektrik Alan Soru Çözümü"},{"subject":"Fizik","topic":"Elektriksel Potansiyel Enerji - 1"},{"subject":"Fizik","topic":"Elektriksel Potansiyel Enerji - 2"},{"subject":"Fizik","topic":"Elektriksel Potansiyel - 1"},{"subject":"Fizik","topic":"Elektriksel Potansiyel - 2 (Küre)"},{"subject":"Biyoloji","topic":"Embriyonik Gelişim"},{"subject":"Biyoloji","topic":"Komünite Ekolojisi-1"}]},
+      {"day":23,"tasks":[{"subject":"Matematik","topic":"Limit ve Süreklilik 12"},{"subject":"Matematik","topic":"Limit ve Süreklilik 13"},{"subject":"Matematik","topic":"Limit ve Süreklilik 14"},{"subject":"Matematik","topic":"Limit BB Testi"},{"subject":"Fizik","topic":"Potansiyel Fark"},{"subject":"Fizik","topic":"Elektriksel İş - 1"},{"subject":"Fizik","topic":"Elektriksel İş Soru Çözümü"},{"subject":"Fizik","topic":"Düzgün Elektrik Alan ve Paralel Levhalar - 1"},{"subject":"Fizik","topic":"Yüklü Parçacıkların Hareketi (Sapma)"},{"subject":"Kimya","topic":"AYT Kimya - Aktiflik ve Redoks Tepkimeleri"},{"subject":"Kimya","topic":"AYT Kimya - Redoks Tepkimelerin Denkleştirilmesi"}]},
+      {"day":24,"tasks":[{"subject":"Matematik","topic":"Türev 1"},{"subject":"Matematik","topic":"Türev 2"},{"subject":"Matematik","topic":"Türev 3"},{"subject":"Matematik","topic":"Türev 4"},{"subject":"Kimya","topic":"AYT Kimya - Aktiflik"},{"subject":"Kimya","topic":"AYT Kimya - Elektrotlar ve Elektrokimyasal Hücreler 1"},{"subject":"Biyoloji","topic":"Komünite Ekolojisi-2"},{"subject":"Biyoloji","topic":"Popülasyon Ekolojisi"}]},
+      {"day":25,"tasks":[{"subject":"Matematik","topic":"Türev 5"},{"subject":"Matematik","topic":"Türev 6"},{"subject":"Matematik","topic":"Türev 7"},{"subject":"Matematik","topic":"Türev 8"},{"subject":"Fizik","topic":"Paralel Levhalar Soru Çözümü"},{"subject":"Fizik","topic":"Sığa (Kapasite) Kavramı"},{"subject":"Fizik","topic":"Sığaçlar (Kondansatörler) - 1"},{"subject":"Fizik","topic":"Sığaçlar (Kondansatörler) - 2 (Enerji)"},{"subject":"Fizik","topic":"Ortak Potansiyel ve Soru Çözümleri"},{"subject":"Biyoloji","topic":"Popülasyon Ekolojisi Genel Tekrar"},{"subject":"Biyoloji","topic":"Nükleik Asitler, Replikasyon"}]},
+      {"day":26,"tasks":[{"subject":"Matematik","topic":"Türev 9"},{"subject":"Matematik","topic":"Türev 10"},{"subject":"Matematik","topic":"Türev 11"},{"subject":"Matematik","topic":"Türev 12"},{"subject":"Fizik","topic":"Manyetik Alan (Düz Tel) - 1"},{"subject":"Fizik","topic":"Manyetik Alan (Halka) - 2"},{"subject":"Fizik","topic":"Manyetik Alan (Bobin) - 3"},{"subject":"Fizik","topic":"Manyetik Kuvvet (Tele Etki Eden) - 1"},{"subject":"Fizik","topic":"İki Telin Birbirine Uyguladığı Kuvvet"},{"subject":"Kimya","topic":"AYT Kimya - Elektrotlar ve Elektrokimyasal Hücreler 2"},{"subject":"Kimya","topic":"AYT Kimya - Derişim Pilleri"}]},
+      {"day":27,"tasks":[{"subject":"Matematik","topic":"Türev 13"},{"subject":"Matematik","topic":"Türev 14"},{"subject":"Matematik","topic":"Türev 15"},{"subject":"Matematik","topic":"Türev 16"},{"subject":"Kimya","topic":"AYT Kimya - Elektroliz"},{"subject":"Kimya","topic":"AYT Kimya - Karbon Kimyasına Giriş"},{"subject":"Biyoloji","topic":"Protein Sentezi"},{"subject":"Biyoloji","topic":"Biyoteknoloji ve Gen Mühendisliği"}]},
+      {"day":28,"tasks":[{"subject":"Matematik","topic":"Türev 17"},{"subject":"Matematik","topic":"Türev 18"},{"subject":"Matematik","topic":"Türev 19"},{"subject":"Matematik","topic":"Türev 20"},{"subject":"Fizik","topic":"Manyetik Kuvvet (Yüklü Parçacığa Etki Eden) - 1"},{"subject":"Fizik","topic":"Manyetik Kuvvet (Yüklü Parçacığa Etki Eden) - 2"},{"subject":"Fizik","topic":"Manyetik Kuvvet Soru Çözümü"},{"subject":"Fizik","topic":"Manyetik Akı"},{"subject":"Fizik","topic":"Faraday İndüksiyon Yasası"},{"subject":"Fizik","topic":"Lenz Yasası (İndüksiyon Akımı Yönü)"},{"subject":"Biyoloji","topic":"Hücresel Solunum Özet"},{"subject":"Biyoloji","topic":"Glikoliz - Son Ürün Evresi"}]},
+      {"day":29,"tasks":[{"subject":"Matematik","topic":"Türev 21"},{"subject":"Matematik","topic":"Türev 22"},{"subject":"Matematik","topic":"Türev 23"},{"subject":"Matematik","topic":"Türev 24"},{"subject":"Fizik","topic":"Hareketli Telde İndüksiyon Emk'sı"},{"subject":"Fizik","topic":"Dönen Telde İndüksiyon Emk'sı"},{"subject":"Fizik","topic":"Özindüksiyon Akımı - 1"},{"subject":"Fizik","topic":"Özindüksiyon Akımı - 2"},{"subject":"Fizik","topic":"İndüksiyon Karma Soru Çözümü - 1"},{"subject":"Kimya","topic":"AYT Kimya - Organik Bileşikler - Alkanlar"},{"subject":"Kimya","topic":"AYT Kimya - Alkenler (Olefinler)"}]},
+      {"day":30,"tasks":[{"subject":"Matematik","topic":"Türev 25"},{"subject":"Matematik","topic":"Türev 26"},{"subject":"Matematik","topic":"Türev BB Testi"},{"subject":"Kimya","topic":"AYT Kimya - Alkinler"},{"subject":"Biyoloji","topic":"Krebs Döngüsü (Sitrik Asit Döngüsü)"},{"subject":"Biyoloji","topic":"ETS ve Anaerobik Solunum"}]},
+      {"day":31,"tasks":[{"subject":"Matematik","topic":"İntegral 1"},{"subject":"Matematik","topic":"İntegral 2"},{"subject":"Matematik","topic":"İntegral 3"},{"subject":"Fizik","topic":"İndüksiyon Karma Soru Çözümü - 2"},{"subject":"Fizik","topic":"İndüksiyon İleri Seviye Soru Çözümü"},{"subject":"Fizik","topic":"Alternatif Akım (Temel Kavramlar)"},{"subject":"Fizik","topic":"Empedans, Reaktans ve Dirençli Devreler"},{"subject":"Fizik","topic":"Rezonans Durumu ve Soru Çözümü"},{"subject":"Biyoloji","topic":"Fotosentez Özet"},{"subject":"Biyoloji","topic":"Fotosentez Evreleri"}]},
+      {"day":32,"tasks":[{"subject":"Matematik","topic":"İntegral 4"},{"subject":"Matematik","topic":"İntegral 5"},{"subject":"Matematik","topic":"İntegral 6"},{"subject":"Fizik","topic":"Transformatörler İdeal Yapı"},{"subject":"Fizik","topic":"Transformatörler Verim ve Soru Çözümü"},{"subject":"Fizik","topic":"Düzgün Çembersel Hareket Temel Kavramlar"},{"subject":"Fizik","topic":"Merkezcil Kuvvet ve Merkezcil İvme"},{"subject":"Fizik","topic":"Yatay Düzlemde Çembersel Hareket"},{"subject":"Kimya","topic":"AYT Kimya - Alkoller ve Eterler"}]},
+      {"day":33,"tasks":[{"subject":"Matematik","topic":"İntegral 7"},{"subject":"Matematik","topic":"İntegral 8"},{"subject":"Matematik","topic":"İntegral 9"},{"subject":"Kimya","topic":"AYT Kimya - Aldehit ve Ketonlar"},{"subject":"Biyoloji","topic":"Fotosentez Kemosentez"},{"subject":"Biyoloji","topic":"Bitkisel Dokular"}]},
+      {"day":34,"tasks":[{"subject":"Matematik","topic":"İntegral 10"},{"subject":"Matematik","topic":"İntegral 11"},{"subject":"Matematik","topic":"İntegral 12"},{"subject":"Fizik","topic":"Eğimli Viraj Problemleri"},{"subject":"Fizik","topic":"Silindir İçinde Hareket"},{"subject":"Fizik","topic":"Düşey Düzlemde Çembersel Hareket - 1"},{"subject":"Fizik","topic":"Düşey Düzlemde Çembersel Hareket - 2"},{"subject":"Fizik","topic":"Dönerek İlerleyen Cisimlerin Kinetik Enerjisi"},{"subject":"Biyoloji","topic":"Bitki Organları"},{"subject":"Biyoloji","topic":"Bitkide Taşıma"}]},
+      {"day":35,"tasks":[{"subject":"Matematik","topic":"İntegral 13"},{"subject":"Matematik","topic":"İntegral 14"},{"subject":"Matematik","topic":"İntegral 15"},{"subject":"Fizik","topic":"Eylemsizlik Momenti"},{"subject":"Fizik","topic":"Açısal Momentum Giriş"},{"subject":"Fizik","topic":"Açısal Momentumun Korunumu"},{"subject":"Fizik","topic":"Açısal Momentum Soru Çözümü"},{"subject":"Fizik","topic":"Kütle Çekim Kuvveti"},{"subject":"Fizik","topic":"Çekim İvmesi ve Bağlanma Enerjisi"},{"subject":"Fizik","topic":"Kepler Kanunları"},{"subject":"Kimya","topic":"AYT Kimya - Karboksilik Asitler ve Esterler"}]},
+      {"day":36,"tasks":[{"subject":"Matematik","topic":"İntegral 16"},{"subject":"Matematik","topic":"İntegral 17"},{"subject":"Matematik","topic":"İntegral 18"},{"subject":"Kimya","topic":"Organik Bileşikler Genel Soru Çözümü ve Tekrar"},{"subject":"Biyoloji","topic":"Bitkisel Hormonlar"},{"subject":"Biyoloji","topic":"Bitkide Hareket"}]},
+      {"day":37,"tasks":[{"subject":"Matematik","topic":"İntegral 19"},{"subject":"Matematik","topic":"İntegral 20"},{"subject":"Matematik","topic":"İntegral 21"},{"subject":"Matematik","topic":"İntegral BB Testi"},{"subject":"Fizik","topic":"Basit Harmonik Hareket Temel Kavramlar"},{"subject":"Fizik","topic":"BHH Uzanım ve Genlik"},{"subject":"Fizik","topic":"BHH Hız, İvme ve Kuvvet Denklemleri"},{"subject":"Fizik","topic":"Yay Sarkacı (Periyot)"},{"subject":"Fizik","topic":"Yayların Bağlanması (Seri/Paralel)"},{"subject":"Biyoloji","topic":"Bitkide Üreme ve Gelişme"},{"subject":"Biyoloji","topic":"Canlılar ve Çevre"}]},
+      {"day":38,"tasks":[{"subject":"Matematik","topic":"Karmaşık Sayılar 1"},{"subject":"Matematik","topic":"Karmaşık Sayılar 2"},{"subject":"Matematik","topic":"Karmaşık Sayılar 3"},{"subject":"Fizik","topic":"Basit Sarkaç (İpli Sarkaç)"},{"subject":"Fizik","topic":"Sarkaçlarda Asansör/İvme Durumları"},{"subject":"Fizik","topic":"BHH Soru Çözümü - 1"},{"subject":"Fizik","topic":"BHH Soru Çözümü - 2"},{"subject":"Fizik","topic":"BHH Soru Çözümü - 3"},{"subject":"Fizik","topic":"Dalga Mekaniği Giriş"},{"subject":"Kimya","topic":"AYT Kimya Denemesi Çözümü ve Analizi"}]},
+      {"day":39,"tasks":[{"subject":"Matematik","topic":"Karmaşık Sayılar 4"},{"subject":"Matematik","topic":"Karmaşık Sayılar 5"},{"subject":"Matematik","topic":"Karmaşık Sayılar BB Testi"},{"subject":"Kimya","topic":"AYT Kimya Genel Tekrar (Eksiklerin Kapatılması)"},{"subject":"Biyoloji","topic":"AYT Biyoloji Genel Tekrar ve Branş Denemesi"}]},
+      {"day":40,"tasks":[{"subject":"Matematik","topic":"AYT Matematik Genel Denemesi Çözümü"},{"subject":"Fizik","topic":"Su Dalgalarında Kırınım"},{"subject":"Fizik","topic":"Su Dalgalarında Girişim Deseni"},{"subject":"Fizik","topic":"Düğüm ve Katar Çizgileri - 1"},{"subject":"Fizik","topic":"Düğüm ve Katar Çizgileri - 2"},{"subject":"Fizik","topic":"Su Dalgaları Soru Çözümü"},{"subject":"Fizik","topic":"Elektromanyetik Dalgalar Özellikleri"},{"subject":"Fizik","topic":"Elektromanyetik Spektrum"},{"subject":"Biyoloji","topic":"Kapanış Branş Denemesi ve Yanlış Analizi"}]}
+    ];
+
+    const QUOTES = [
+      "Başarı, her gün küçük çabaların birikmesidir.",
+      "Bugün zor olan yarın kolay olacak.",
+      "Hayallerin için savaş, vazgeçme!",
+      "Her soru çözümü seni bir adım daha yaklaştırır.",
+      "Zorluklar seni güçlendirir, pes etme.",
+      "Bugünkü emek, yarının zaferidir.",
+      "Küçük adımlar büyük başarılara götürür.",
+      "Kendine inan, başaracaksın.",
+      "Her gün yeni bir fırsattır.",
+      "Çalışmak şansını artırır.",
+      "Hedefine odaklan, gerisi gelir.",
+      "Bugün yaptığın, yarın seni taşıyacak.",
+      "Başarı tesadüf değildir.",
+      "Zihnin sınırlarını zorla.",
+      "Her doğru cevap bir zaferdir.",
+      "Yorulmak başarıya giden yolda normaldir.",
+      "Dünden daha iyi olmak için çalış.",
+      "Hayallerin sınırı yok, çalışman da öyle olmasın.",
+      "Bir adım daha, bir soru daha.",
+      "Güçlü olmak için disiplin gerekir.",
+      "Başarıya giden yol sabırdan geçer.",
+      "Bugünkü fedakarlık, geleceğin garantisidir.",
+      "Kendini kanıtlamak için çalış.",
+      "Her zorluğun ardında bir kolaylık vardır.",
+      "Çalışkanlık en büyük yetenektir.",
+      "Hedeflerin için mücadele et.",
+      "Zamanını akıllıca kullan.",
+      "Başarıya giden merdiven basamak basamak çıkılır.",
+      "Bugünkü çaban geleceğini şekillendirir.",
+      "Asla durma, her zaman ilerle.",
+      "Bilgi güçtür, öğrenmeye devam et.",
+      "Her gün biraz daha güçlü.",
+      "Yarın seni gururlandıracak çalışmayı bugün yap.",
+      "Başarılı olmak için önce başlamalısın.",
+      "Zorluklar seni durduramaz.",
+      "Her çözülen soru bir zaferdir.",
+      "İnanç ve çalışma ile her şey mümkün.",
+      "Bugünkü ter, yarının gülüşüdür.",
+      "Kendine söz ver ve tut.",
+      "Son güne kadar mücadele et, zafer yakındır!"
+    ];
+
+    // ==================== AUDIO ====================
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function ensureAudio() {
+      if (!audioCtx) audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playTone(freq, duration, type = 'sine', volume = 0.15) {
+      ensureAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function playCheckSound() {
+      playTone(880, 0.08, 'sine', 0.12);
+      setTimeout(() => playTone(1100, 0.1, 'sine', 0.1), 60);
+    }
+
+    function playUncheckSound() {
+      playTone(600, 0.1, 'triangle', 0.08);
+    }
+
+    function playDayCompleteSound() {
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((n, i) => setTimeout(() => playTone(n, 0.25, 'sine', 0.15), i * 120));
+    }
+
+    function playSubjectCompleteSound() {
+      const notes = [660, 880, 1100];
+      notes.forEach((n, i) => setTimeout(() => playTone(n, 0.18, 'sine', 0.12), i * 100));
+    }
+
+    function playStreakSound() {
+      const notes = [440, 554, 659, 880];
+      notes.forEach((n, i) => setTimeout(() => playTone(n, 0.15, 'sine', 0.12), i * 90));
+    }
+
+    // ==================== CONSTANTS ====================
+    const STORAGE_KEYS = {
+      START_DATE: 'yks_camp_start_date',
+      PROGRESS: 'yks_camp_progress',
+      LOG: 'yks_camp_log',
+      STREAK: 'yks_camp_streak',
+      EXTRAS: 'yks_camp_extra_topics',
+      ACTIVE_DAY: 'yks_camp_active_day'
+    };
+
+    const SUBJECT_COLORS = {
+      'Matematik': '#3b82f6',
+      'Fizik': '#8b5cf6',
+      'Kimya': '#10b981',
+      'Biyoloji': '#f43f5e'
+    };
+
+    const SUBJECT_ICONS = {
+      'Matematik': '📐',
+      'Fizik': '⚛️',
+      'Kimya': '🧪',
+      'Biyoloji': '🧬'
+    };
+
+    // ==================== STATE ====================
+    let state = {
+      startDate: null,
+      progress: {},
+      log: [],
+      streak: { current: 0, best: 0, lastActiveDate: null },
+      extras: {},
+      activeDay: 1
+    };
+
+    let currentView = 'today';
+    let overviewNeedsRender = true;
+
+    // ==================== LOCAL STORAGE ====================
+    function loadState() {
+      try {
+        const sd = localStorage.getItem(STORAGE_KEYS.START_DATE);
+        const pr = localStorage.getItem(STORAGE_KEYS.PROGRESS);
+        const lg = localStorage.getItem(STORAGE_KEYS.LOG);
+        const st = localStorage.getItem(STORAGE_KEYS.STREAK);
+        const ex = localStorage.getItem(STORAGE_KEYS.EXTRAS);
+        const ad = localStorage.getItem(STORAGE_KEYS.ACTIVE_DAY);
+        if (sd) state.startDate = sd;
+        if (pr) state.progress = JSON.parse(pr);
+        if (lg) state.log = JSON.parse(lg);
+        if (st) state.streak = JSON.parse(st);
+        if (ex) state.extras = JSON.parse(ex);
+        if (ad) state.activeDay = parseInt(ad);
+      } catch (e) { console.error('Load error:', e); }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.START_DATE, state.startDate || '');
+        localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(state.progress));
+        localStorage.setItem(STORAGE_KEYS.LOG, JSON.stringify(state.log));
+        localStorage.setItem(STORAGE_KEYS.STREAK, JSON.stringify(state.streak));
+        localStorage.setItem(STORAGE_KEYS.EXTRAS, JSON.stringify(state.extras));
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_DAY, String(state.activeDay));
+      } catch (e) { console.error('Save error:', e); }
+    }
+
+    // ==================== DATE UTILITIES ====================
+    function getTodayDayNumber() {
+      if (!state.startDate) return null;
+      const start = new Date(state.startDate);
+      const today = new Date();
+      start.setHours(0,0,0,0);
+      today.setHours(0,0,0,0);
+      const diff = Math.floor((today - start) / (86400000));
+      return diff + 1;
+    }
+
+    function getDayDate(dayNum) {
+      if (!state.startDate) return null;
+      const d = new Date(state.startDate);
+      d.setDate(d.getDate() + dayNum - 1);
+      return d;
+    }
+
+    function formatDateTR(date) {
+      const days = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+      const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+      return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${days[date.getDay()]}`;
+    }
+
+    function formatShortDate(date) {
+      const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+      return `${date.getDate()} ${months[date.getMonth()]}`;
+    }
+
+    function getTodayString() {
+      const d = new Date();
+      d.setHours(0,0,0,0);
+      return d.toISOString().split('T')[0];
+    }
+
+    function getDateString(date) {
+      const d = new Date(date);
+      d.setHours(0,0,0,0);
+      return d.toISOString().split('T')[0];
+    }
+
+    // ==================== PROGRESS UTILITIES ====================
+    function getTopicStatus(dayNum, subject, topic) {
+      const dayKey = `day_${dayNum}`;
+      const progress = state.progress[dayKey] || {};
+      const vKey = `${subject}|${topic}|video`;
+      const sKey = `${subject}|${topic}|soru`;
+
+      // Check regular progress first
+      let video = !!progress[vKey];
+      let soru = !!progress[sKey];
+      let videoTime = progress[`${vKey}_time`] || null;
+      let soruTime = progress[`${sKey}_time`] || null;
+
+      // Check extras
+      const extras = state.extras[dayKey] || [];
+      const extra = extras.find(e => e.subject === subject && e.topic === topic);
+      if (extra) {
+        video = extra.videoChecked;
+        soru = extra.soruChecked;
+        videoTime = extra.videoTime || null;
+        soruTime = extra.soruTime || null;
+      }
+
+      return { video, soru, videoTime, soruTime, fullyComplete: video && soru };
+    }
+
+    function getDayTotalItems(dayNum) {
+      const dayData = CAMP_DATA.find(d => d.day === dayNum);
+      if (!dayData) return 0;
+      const extras = state.extras[`day_${dayNum}`] || [];
+      return (dayData.tasks.length + extras.length) * 2;
+    }
+
+    function getDayCompletedItems(dayNum) {
+      const dayData = CAMP_DATA.find(d => d.day === dayNum);
+      if (!dayData) return 0;
+      let completed = 0;
+      dayData.tasks.forEach(t => {
+        const s = getTopicStatus(dayNum, t.subject, t.topic);
+        if (s.video) completed++;
+        if (s.soru) completed++;
+      });
+      const extras = state.extras[`day_${dayNum}`] || [];
+      extras.forEach(e => {
+        if (e.videoChecked) completed++;
+        if (e.soruChecked) completed++;
+      });
+      return completed;
+    }
+
+    function getDayFullyCompletedTopics(dayNum) {
+      const dayData = CAMP_DATA.find(d => d.day === dayNum);
+      if (!dayData) return { total: 0, completed: 0 };
+      const extras = state.extras[`day_${dayNum}`] || [];
+      const allTasks = [...dayData.tasks, ...extras];
+      let completed = 0;
+      allTasks.forEach(t => {
+        if (getTopicStatus(dayNum, t.subject, t.topic).fullyComplete) completed++;
+      });
+      return { total: allTasks.length, completed };
+    }
+
+    function getOverallProgress() {
+      let total = 0, completed = 0;
+      for (let d = 1; d <= 40; d++) {
+        total += getDayTotalItems(d);
+        completed += getDayCompletedItems(d);
+      }
+      return { total, completed, pct: total > 0 ? (completed / total) * 100 : 0 };
+    }
+
+    function getTotalFullyCompletedTopics() {
+      let count = 0;
+      for (let d = 1; d <= 40; d++) {
+        count += getDayFullyCompletedTopics(d).completed;
+      }
+      return count;
+    }
+
+    function getStudyDays() {
+      const activeDays = new Set();
+      for (let d = 1; d <= 40; d++) {
+        if (getDayCompletedItems(d) > 0) activeDays.add(d);
+      }
+      return activeDays.size;
+    }
+
+    // ==================== STREAK ====================
+    function getActiveDates() {
+      const dates = new Set();
+      state.log.forEach(entry => {
+        if (entry.action.includes('done')) {
+          dates.add(getDateString(entry.timestamp));
+        }
+      });
+      return dates;
+    }
+
+    function calculateStreak() {
+      const activeDates = getActiveDates();
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      let checkStr = activeDates.has(todayStr) ? todayStr : yesterdayStr;
+      let streak = 0;
+      let checkDate = new Date(checkStr);
+
+      while (true) {
+        const str = checkDate.toISOString().split('T')[0];
+        if (activeDates.has(str)) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+
+    function updateStreak() {
+      const prevBest = state.streak.best;
+      const current = calculateStreak();
+      state.streak.current = current;
+      if (current > state.streak.best) {
+        state.streak.best = current;
+        if (current >= 3 && current > prevBest) {
+          playStreakSound();
+        }
+      }
+      state.streak.lastActiveDate = new Date().toISOString();
+      saveState();
+    }
+
+    function getStreakHTML(streak) {
+      if (streak === 0) {
+        return `<span class="flex items-center gap-1.5"><span>💪</span> Seriyi Başlat!</span>`;
+      }
+      let flames = '🔥';
+      let cls = '';
+      if (streak >= 4) flames = '🔥🔥';
+      if (streak >= 8) { flames = '🔥🔥🔥'; cls = 'streak-pulse'; }
+      return `<span class="flex items-center gap-1.5 ${cls}"><span>${flames}</span> ${streak} Günlük Seri</span>`;
+    }
+
+    // ==================== LOGGING ====================
+    function logAction(day, subject, topic, action) {
+      state.log.push({
+        day,
+        subject,
+        topic,
+        action,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ==================== SLUGIFY ====================
+    function slugify(str) {
+      return String(str).replace(/[^a-zA-Z0-9\u00C0-\u017F]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    // ==================== RENDER: ONBOARDING / COUNTDOWN / COMPLETION ====================
+    function showOnboarding() {
+      document.getElementById('onboarding-screen').classList.remove('hidden');
+      document.getElementById('countdown-screen').classList.add('hidden');
+      document.getElementById('completion-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.add('hidden');
+    }
+
+    function showCountdown() {
+      document.getElementById('onboarding-screen').classList.add('hidden');
+      document.getElementById('countdown-screen').classList.remove('hidden');
+      document.getElementById('completion-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.add('hidden');
+
+      const start = new Date(state.startDate);
+      document.getElementById('countdown-date').textContent = formatDateTR(start);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      start.setHours(0,0,0,0);
+      const diff = Math.ceil((start - today) / 86400000);
+      document.getElementById('countdown-days').textContent = diff;
+    }
+
+    function showCompletion() {
+      document.getElementById('onboarding-screen').classList.add('hidden');
+      document.getElementById('countdown-screen').classList.add('hidden');
+      document.getElementById('completion-screen').classList.remove('hidden');
+      document.getElementById('main-app').classList.add('hidden');
+
+      const overall = getOverallProgress();
+      document.getElementById('comp-topics').textContent = getTotalFullyCompletedTopics();
+      document.getElementById('comp-days').textContent = getStudyDays();
+      document.getElementById('comp-streak').textContent = state.streak.best;
+      document.getElementById('comp-pct').textContent = Math.round(overall.pct) + '%';
+    }
+
+    function showMainApp() {
+      document.getElementById('onboarding-screen').classList.add('hidden');
+      document.getElementById('countdown-screen').classList.add('hidden');
+      document.getElementById('completion-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.remove('hidden');
+    }
+
+    // ==================== RENDER: TODAY VIEW ====================
+    function renderTodayView() {
+      const dayNum = state.activeDay;
+      if (dayNum < 1 || dayNum > 40) return;
+
+      const dayData = CAMP_DATA.find(d => d.day === dayNum);
+      if (!dayData) return;
+
+      // Header
+      document.getElementById('today-day-num').textContent = dayNum;
+      const activeDate = getDayDate(dayNum);
+      document.getElementById('today-date').textContent = activeDate ? formatDateTR(activeDate) : '-';
+
+      // Streak
+      const streak = calculateStreak();
+      document.getElementById('streak-badge').innerHTML = getStreakHTML(streak);
+
+      // Overall progress
+      const overall = getOverallProgress();
+      document.getElementById('overall-progress-text').textContent = '%' + Math.round(overall.pct);
+      document.getElementById('overall-progress-bar').style.width = overall.pct + '%';
+
+      // Quote
+      document.getElementById('daily-quote').textContent = '"' + QUOTES[dayNum - 1] + '"';
+
+      // Subject cards
+      const container = document.getElementById('today-subjects');
+      const grouped = {};
+      dayData.tasks.forEach(t => {
+        if (!grouped[t.subject]) grouped[t.subject] = [];
+        grouped[t.subject].push(t);
+      });
+
+      // Add extras to grouped
+      const extras = state.extras[`day_${dayNum}`] || [];
+      extras.forEach(e => {
+        if (!grouped[e.subject]) grouped[e.subject] = [];
+        grouped[e.subject].push(e);
+      });
+
+      // Order: Matematik first, then alphabetical
+      const subjects = Object.keys(grouped).sort((a, b) => {
+        if (a === 'Matematik') return -1;
+        if (b === 'Matematik') return 1;
+        return a.localeCompare(b);
+      });
+
+      container.innerHTML = subjects.map(subject => {
+        const tasks = grouped[subject];
+        const color = SUBJECT_COLORS[subject];
+        const icon = SUBJECT_ICONS[subject];
+        const cardId = `subject-card-${dayNum}-${slugify(subject)}`;
+
+        let completedTopics = 0;
+        tasks.forEach(t => {
+          if (getTopicStatus(dayNum, t.subject, t.topic).fullyComplete) completedTopics++;
+        });
+
+        const topicRows = tasks.map((t, idx) => {
+          const status = getTopicStatus(dayNum, t.subject, t.topic);
+          const rowId = `row-${dayNum}-${slugify(subject)}-${slugify(t.topic)}-${idx}`;
+          const vTime = status.videoTime ? new Date(status.videoTime).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
+          const sTime = status.soruTime ? new Date(status.soruTime).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
+          const locked = !status.video;
+          const fcClass = status.fullyComplete ? 'fully-complete' : '';
+
+          return `
+            <div class="topic-row ${fcClass}" id="${rowId}">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-200 topic-name">${t.topic}</span>
+              </div>
+              <div class="flex items-center gap-5 flex-wrap">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" class="task-checkbox custom-checkbox"
+                    data-day="${dayNum}" data-subject="${t.subject}" data-topic="${t.topic}" data-type="video"
+                    ${status.video ? 'checked' : ''}>
+                  <span class="text-xs text-gray-400">📹 Video</span>
+                  ${vTime ? `<span class="text-[11px] text-gray-600 font-mono">${vTime}</span>` : ''}
+                </label>
+                <label class="flex items-center gap-2 select-none soru-wrapper ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+                  <input type="checkbox" class="task-checkbox custom-checkbox"
+                    data-day="${dayNum}" data-subject="${t.subject}" data-topic="${t.topic}" data-type="soru"
+                    ${status.soru ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+                  <span class="text-xs text-gray-400">📝 Soru Çözümü</span>
+                  ${sTime ? `<span class="text-[11px] text-gray-600 font-mono">${sTime}</span>` : ''}
+                  ${locked ? '<span class="text-[11px]">🔒</span>' : ''}
+                </label>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="bg-[#1a1d27] rounded-xl border border-gray-800 overflow-hidden" style="border-left: 3px solid ${color};" id="${cardId}">
+            <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-[#1e2130] transition-colors" onclick="toggleSubjectCard('${cardId}-content', '${cardId}-chevron')">
+              <div class="flex items-center gap-3">
+                <span class="text-xl">${icon}</span>
+                <div>
+                  <h3 class="font-semibold text-white">${subject}</h3>
+                  <p class="text-xs text-gray-500">${completedTopics}/${tasks.length} konu tamamlandı</p>
+                </div>
+              </div>
+              <svg id="${cardId}-chevron" class="chevron w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <div id="${cardId}-content" class="px-4 pb-4">
+              ${topicRows}
+              <div class="mt-3 pt-3 border-t border-gray-800/50">
+                <div class="flex items-center gap-2">
+                  <input type="text" id="extra-input-${slugify(subject)}" placeholder="Ekstra konu ekle..."
+                    class="flex-1 bg-[#0f1117] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                    onkeydown="if(event.key==='Enter') handleAddExtraTopic('${subject}')">
+                  <button onclick="handleAddExtraTopic('${subject}')" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-600/30 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                    + Ekle
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Tomorrow preview
+      renderTomorrowPreview();
+
+      // Activity log
+      renderActivityLog();
+    }
+
+    function renderTomorrowPreview() {
+      const activeNum = state.activeDay;
+      const container = document.getElementById('tomorrow-section');
+
+      if (activeNum >= 40) {
+        container.innerHTML = `
+          <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5 text-center">
+            <div class="text-2xl mb-2">🎓</div>
+            <p class="text-amber-400 font-medium">Son Gün! Kamp burada bitiyor.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const nextData = CAMP_DATA.find(d => d.day === activeNum + 1);
+      if (!nextData) return;
+
+      const subjects = [...new Set(nextData.tasks.map(t => t.subject))];
+      const badges = subjects.map(s => {
+        const c = SUBJECT_COLORS[s];
+        return `<span class="px-2.5 py-1 rounded-lg text-xs font-medium" style="background:${c}18;color:${c};">${s}</span>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="bg-[#1a1d27] rounded-xl border border-gray-800 overflow-hidden">
+          <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-[#1e2130] transition-colors" onclick="toggleTomorrow()">
+            <h3 class="font-medium text-gray-300">🔮 Sonraki Gün — Gün ${activeNum + 1}</h3>
+            <svg id="tomorrow-chevron" class="chevron w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <div id="tomorrow-content" class="hidden px-4 pb-4">
+            <div class="flex flex-wrap gap-2">${badges}</div>
+            <p class="text-xs text-gray-600 mt-2">Sonraki gün plan önizlemesi.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderActivityLog() {
+      const container = document.getElementById('activity-log-entries');
+      const dayLogs = state.log.filter(entry => entry.day === state.activeDay).reverse();
+
+      if (dayLogs.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-600 italic">Bu gün için henüz aktivite yok.</p>';
+        return;
+      }
+
+      container.innerHTML = dayLogs.map(entry => {
+        const d = new Date(entry.timestamp);
+        const time = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        const actionText = entry.action.includes('video') ? 'Video' : 'Soru Çözümü';
+        const icon = entry.action.includes('done') ? '✅' : '↩️';
+        return `<div class="text-sm text-gray-400 flex items-center gap-2">
+          <span class="text-gray-600 font-mono text-xs">${dateStr} ${time}</span>
+          <span>— ${entry.subject} / ${entry.topic} - ${actionText} ${icon}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // ==================== RENDER: OVERVIEW ====================
+    function renderWeeklyReport() {
+      const container = document.getElementById('weekly-reports');
+      const weeks = [
+        { num: 1, days: [1,2,3,4,5,6,7] },
+        { num: 2, days: [8,9,10,11,12,13,14] },
+        { num: 3, days: [15,16,17,18,19,20,21] },
+        { num: 4, days: [22,23,24,25,26,27,28] },
+        { num: 5, days: [29,30,31,32,33,34,35] },
+        { num: 6, days: [36,37,38,39,40] }
+      ];
+
+      const weeklyHtml = weeks.map(w => {
+        let totalTopics = 0;
+        let completedTopics = 0;
+        let totalItems = 0;
+        let completedItems = 0;
+        let studyDays = 0;
+        const dayStatuses = [];
+
+        w.days.forEach(d => {
+          const dayData = CAMP_DATA.find(day => day.day === d);
+          const extras = state.extras[`day_${d}`] || [];
+          const allTasks = dayData ? [...dayData.tasks, ...extras] : [...extras];
+
+          let dayCompleted = 0;
+          let dayTotal = allTasks.length;
+          allTasks.forEach(t => {
+            const s = getTopicStatus(d, t.subject, t.topic);
+            totalItems += 2;
+            completedItems += (s.video ? 1 : 0) + (s.soru ? 1 : 0);
+            if (s.fullyComplete) dayCompleted++;
+          });
+
+          totalTopics += dayTotal;
+          completedTopics += dayCompleted;
+          if (dayCompleted > 0) studyDays++;
+
+          let statusColor = 'bg-gray-800';
+          if (dayTotal > 0 && dayCompleted === dayTotal) statusColor = 'bg-green-500';
+          else if (dayCompleted > 0) statusColor = 'bg-amber-500';
+          dayStatuses.push(`<div class="w-6 h-6 rounded-md ${statusColor} flex items-center justify-center text-[10px] font-bold text-white/90" title="Gün ${d}">${d}</div>`);
+        });
+
+        const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+        return `
+          <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-white">Hafta ${w.num}</h3>
+              <span class="text-sm font-semibold ${pct >= 80 ? 'text-green-400' : pct >= 50 ? 'text-amber-400' : 'text-gray-500'}">%${pct}</span>
+            </div>
+            <div class="h-2 bg-gray-800 rounded-full overflow-hidden mb-4">
+              <div class="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full progress-bar-fill" style="width:${pct}%"></div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div class="text-center">
+                <div class="text-xl font-bold text-green-400">${completedTopics}</div>
+                <div class="text-xs text-gray-500">Konu Tamamlandı</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-bold text-blue-400">${totalTopics}</div>
+                <div class="text-xs text-gray-500">Toplam Konu</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-bold text-orange-400">${studyDays}</div>
+                <div class="text-xs text-gray-500">Çalışma Günü</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-bold text-purple-400">${w.days.length}</div>
+                <div class="text-xs text-gray-500">Toplam Gün</div>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              ${dayStatuses.join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Subject-based reports
+      const subjects = ['Matematik', 'Fizik', 'Kimya', 'Biyoloji'];
+      const subjectHtml = subjects.map(subj => {
+        let totalTopics = 0;
+        let completedTopics = 0;
+        let totalVideos = 0;
+        let completedVideos = 0;
+        let totalSoru = 0;
+        let completedSoru = 0;
+        const dayBreakdown = [];
+
+        for (let d = 1; d <= 40; d++) {
+          const dayData = CAMP_DATA.find(day => day.day === d);
+          const extras = state.extras[`day_${d}`] || [];
+          const tasks = [
+            ...(dayData ? dayData.tasks.filter(t => t.subject === subj) : []),
+            ...extras.filter(e => e.subject === subj)
+          ];
+
+          if (tasks.length === 0) continue;
+
+          let dayCompleted = 0;
+          let dayVideos = 0;
+          let daySoru = 0;
+          tasks.forEach(t => {
+            const s = getTopicStatus(d, t.subject, t.topic);
+            totalTopics++;
+            totalVideos++;
+            totalSoru++;
+            if (s.video) completedVideos++;
+            if (s.soru) completedSoru++;
+            if (s.fullyComplete) {
+              completedTopics++;
+              dayCompleted++;
+            }
+            if (s.video) dayVideos++;
+            if (s.soru) daySoru++;
+          });
+
+          const color = SUBJECT_COLORS[subj];
+          dayBreakdown.push(`<div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-500 w-10">Gün ${d}</span>
+            <div class="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style="width:${(dayCompleted/tasks.length)*100}%;background:${color};"></div>
+            </div>
+            <span class="text-gray-400 w-12 text-right">${dayCompleted}/${tasks.length}</span>
+          </div>`);
+        }
+
+        const topicPct = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
+        const videoPct = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
+        const soruPct = totalSoru > 0 ? Math.round((completedSoru / totalSoru) * 100) : 0;
+        const color = SUBJECT_COLORS[subj];
+        const icon = SUBJECT_ICONS[subj];
+
+        return `
+          <div class="bg-[#1a1d27] rounded-xl border border-gray-800 p-5" style="border-left: 3px solid ${color};">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="text-2xl">${icon}</span>
+              <div>
+                <h3 class="text-lg font-bold text-white">${subj}</h3>
+                <p class="text-xs text-gray-500">${completedTopics} / ${totalTopics} konu tamamlandı</p>
+              </div>
+              <div class="ml-auto text-2xl font-bold" style="color:${color};">%${topicPct}</div>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden mb-4" style="background:${color}18;">
+              <div class="h-full rounded-full progress-bar-fill" style="width:${topicPct}%;background:${color};"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mb-4">
+              <div class="text-center bg-[#0f1117] rounded-lg p-2">
+                <div class="text-sm font-bold" style="color:${color};">${completedVideos}/${totalVideos}</div>
+                <div class="text-[10px] text-gray-500">Video</div>
+              </div>
+              <div class="text-center bg-[#0f1117] rounded-lg p-2">
+                <div class="text-sm font-bold" style="color:${color};">${completedSoru}/${totalSoru}</div>
+                <div class="text-[10px] text-gray-500">Soru</div>
+              </div>
+              <div class="text-center bg-[#0f1117] rounded-lg p-2">
+                <div class="text-sm font-bold" style="color:${color};">${completedTopics}</div>
+                <div class="text-[10px] text-gray-500">Tamamlandı</div>
+              </div>
+            </div>
+            <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              ${dayBreakdown.length > 0 ? dayBreakdown.join('') : '<p class="text-xs text-gray-600 italic">Henüz kayıt yok.</p>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="mb-8">
+          <h3 class="text-xl font-bold text-white mb-4">📅 Haftalık Raporlar</h3>
+          <div class="space-y-4">${weeklyHtml}</div>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold text-white mb-4">📚 Ders Bazlı Raporlar</h3>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">${subjectHtml}</div>
+        </div>
+      `;
+    }
+
+    function renderOverview() {
+      if (!overviewNeedsRender) return;
+      overviewNeedsRender = false;
+
+      const todayNum = getTodayDayNumber() || 0;
+
+      // Stats
+      const overall = getOverallProgress();
+      document.getElementById('stat-topics').textContent = getTotalFullyCompletedTopics();
+      document.getElementById('stat-study-days').textContent = getStudyDays();
+      document.getElementById('stat-current-streak').textContent = calculateStreak();
+      document.getElementById('stat-best-streak').textContent = state.streak.best;
+      document.getElementById('stat-pct').textContent = Math.round(overall.pct) + '%';
+
+      // Progress ring
+      const circumference = 2 * Math.PI * 26;
+      const offset = circumference - (overall.pct / 100) * circumference;
+      document.getElementById('stat-ring').setAttribute('stroke-dashoffset', offset);
+
+      // Days grid
+      const grid = document.getElementById('days-grid');
+      grid.innerHTML = CAMP_DATA.map(dayData => {
+        const dNum = dayData.day;
+        const date = getDayDate(dNum);
+        const dateStr = date ? formatShortDate(date) : '-';
+        const { total, completed } = getDayFullyCompletedTopics(dNum);
+        const itemsTotal = getDayTotalItems(dNum);
+        const itemsDone = getDayCompletedItems(dNum);
+        const pct = itemsTotal > 0 ? (itemsDone / itemsTotal) * 100 : 0;
+
+        const subjects = [...new Set(dayData.tasks.map(t => t.subject))];
+        const badges = subjects.map(s => {
+          const c = SUBJECT_COLORS[s];
+          return `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium" style="background:${c}18;color:${c};">${s}</span>`;
+        }).join('');
+
+        let statusClass = 'border-gray-800';
+        let statusIcon = '';
+        if (dNum === todayNum) {
+          statusClass = 'today';
+          statusIcon = '<span class="absolute -top-2 -right-2 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">BUGÜN</span>';
+        } else if (dNum < todayNum) {
+          if (itemsDone === 0) {
+            statusClass = 'missed';
+          } else if (itemsDone === itemsTotal) {
+            statusClass = 'completed';
+          } else {
+            statusClass = 'border-amber-900/30 bg-amber-500/[0.03]';
+          }
+        } else {
+          statusClass = 'border-gray-800 opacity-60';
+          statusIcon = '<span class="absolute -top-2 -right-2 bg-gray-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">ÖNİZLEME</span>';
+        }
+
+        return `
+          <div onclick="openDayModal(${dNum})" class="day-card relative rounded-xl p-4 border ${statusClass} cursor-pointer">
+            ${statusIcon}
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-lg font-bold text-white">Gün ${dNum}</span>
+              <span class="text-xs text-gray-500">${dateStr}</span>
+            </div>
+            <div class="flex flex-wrap gap-1 mb-3">${badges}</div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-400">${itemsDone}/${itemsTotal} ✅</span>
+              <div class="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div class="h-full bg-green-500 rounded-full progress-bar-fill" style="width:${pct}%"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==================== RENDER: DAY MODAL ====================
+    function openDayModal(dayNum) {
+      const todayNum = getTodayDayNumber() || 0;
+      const isToday = dayNum === todayNum;
+      const isPast = dayNum < todayNum;
+      const isFuture = dayNum > todayNum;
+
+      const dayData = CAMP_DATA.find(d => d.day === dayNum);
+      if (!dayData) return;
+
+      const date = getDayDate(dayNum);
+      document.getElementById('modal-title').textContent = `Gün ${dayNum}`;
+      document.getElementById('modal-date').textContent = date ? formatDateTR(date) : '-';
+
+      const grouped = {};
+      dayData.tasks.forEach(t => {
+        if (!grouped[t.subject]) grouped[t.subject] = [];
+        grouped[t.subject].push(t);
+      });
+
+      const extras = state.extras[`day_${dayNum}`] || [];
+      extras.forEach(e => {
+        if (!grouped[e.subject]) grouped[e.subject] = [];
+        grouped[e.subject].push(e);
+      });
+
+      const subjects = Object.keys(grouped).sort((a, b) => {
+        if (a === 'Matematik') return -1;
+        if (b === 'Matematik') return 1;
+        return a.localeCompare(b);
+      });
+
+      document.getElementById('modal-subjects').innerHTML = subjects.map(subject => {
+        const tasks = grouped[subject];
+        const color = SUBJECT_COLORS[subject];
+        const icon = SUBJECT_ICONS[subject];
+
+        const rows = tasks.map((t, idx) => {
+          const status = getTopicStatus(dayNum, t.subject, t.topic);
+          const disabled = isFuture;
+          const vTime = status.videoTime ? new Date(status.videoTime).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
+          const sTime = status.soruTime ? new Date(status.soruTime).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
+          const locked = !status.video || disabled;
+          const fcClass = status.fullyComplete ? 'fully-complete' : '';
+
+          return `
+            <div class="topic-row ${fcClass}">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-200 topic-name">${t.topic}</span>
+              </div>
+              <div class="flex items-center gap-5 flex-wrap">
+                <label class="flex items-center gap-2 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} select-none">
+                  <input type="checkbox" class="task-checkbox custom-checkbox"
+                    data-day="${dayNum}" data-subject="${t.subject}" data-topic="${t.topic}" data-type="video"
+                    ${status.video ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+                  <span class="text-xs text-gray-400">📹 Video</span>
+                  ${vTime ? `<span class="text-[11px] text-gray-600 font-mono">${vTime}</span>` : ''}
+                </label>
+                <label class="flex items-center gap-2 select-none ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+                  <input type="checkbox" class="task-checkbox custom-checkbox"
+                    data-day="${dayNum}" data-subject="${t.subject}" data-topic="${t.topic}" data-type="soru"
+                    ${status.soru ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+                  <span class="text-xs text-gray-400">📝 Soru Çözümü</span>
+                  ${sTime ? `<span class="text-[11px] text-gray-600 font-mono">${sTime}</span>` : ''}
+                  ${locked && !disabled ? '<span class="text-[11px]">🔒</span>' : ''}
+                </label>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="bg-[#0f1117] rounded-xl border border-gray-800 overflow-hidden" style="border-left: 3px solid ${color};">
+            <div class="p-3 flex items-center gap-2">
+              <span>${icon}</span>
+              <span class="font-semibold text-white text-sm">${subject}</span>
+            </div>
+            <div class="px-3 pb-3">${rows}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Modal log
+      const dayLogs = state.log.filter(e => e.day === dayNum).reverse();
+      const logContainer = document.getElementById('modal-log');
+      if (dayLogs.length === 0) {
+        logContainer.innerHTML = '<p class="text-sm text-gray-600 italic">Bu gün için kayıt yok.</p>';
+      } else {
+        logContainer.innerHTML = dayLogs.map(entry => {
+          const d = new Date(entry.timestamp);
+          const time = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+          const actionText = entry.action.includes('video') ? 'Video' : 'Soru Çözümü';
+          const icon = entry.action.includes('done') ? '✅' : '↩️';
+          return `<div class="text-sm text-gray-400 flex items-center gap-2">
+            <span class="text-gray-600 font-mono text-xs">${time}</span>
+            <span>— ${entry.subject} / ${entry.topic} - ${actionText} ${icon}</span>
+          </div>`;
+        }).join('');
+      }
+
+      document.getElementById('day-modal').classList.remove('hidden');
+    }
+
+    function closeDayModal() {
+      document.getElementById('day-modal').classList.add('hidden');
+      renderOverview();
+    }
+
+    // ==================== TOGGLES ====================
+    function toggleSubjectCard(contentId, chevronId) {
+      const content = document.getElementById(contentId);
+      const chevron = document.getElementById(chevronId);
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotated');
+      } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotated');
+      }
+    }
+
+    function toggleActivityLog() {
+      const content = document.getElementById('activity-log-content');
+      const chevron = document.getElementById('activity-chevron');
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotated');
+      } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotated');
+      }
+    }
+
+    function toggleTomorrow() {
+      const content = document.getElementById('tomorrow-content');
+      const chevron = document.getElementById('tomorrow-chevron');
+      if (!content || !chevron) return;
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotated');
+      } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotated');
+      }
+    }
+
+    // ==================== VIEW SWITCHING ====================
+    function switchView(view) {
+      currentView = view;
+      const todayBtn = document.getElementById('nav-today');
+      const overviewBtn = document.getElementById('nav-overview');
+      const reportBtn = document.getElementById('nav-report');
+      const todayView = document.getElementById('today-view');
+      const overviewView = document.getElementById('overview-view');
+      const reportView = document.getElementById('report-view');
+
+      [todayBtn, overviewBtn, reportBtn].forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('text-gray-400');
+      });
+      [todayView, overviewView, reportView].forEach(v => v.classList.add('hidden'));
+
+      if (view === 'today') {
+        todayBtn.classList.add('bg-blue-600', 'text-white');
+        todayBtn.classList.remove('text-gray-400');
+        todayView.classList.remove('hidden');
+        renderTodayView();
+      } else if (view === 'overview') {
+        overviewBtn.classList.add('bg-blue-600', 'text-white');
+        overviewBtn.classList.remove('text-gray-400');
+        overviewView.classList.remove('hidden');
+        overviewNeedsRender = true;
+        renderOverview();
+      } else if (view === 'report') {
+        reportBtn.classList.add('bg-blue-600', 'text-white');
+        reportBtn.classList.remove('text-gray-400');
+        reportView.classList.remove('hidden');
+        renderWeeklyReport();
+      }
+    }
+
+    // ==================== EVENT HANDLERS ====================
+    function handleSetStartDate() {
+      const input = document.getElementById('onboarding-date');
+      if (!input.value) {
+        alert('Lütfen bir tarih seçin.');
+        return;
+      }
+      state.startDate = input.value;
+      saveState();
+      init();
+    }
+
+    function handleCheck(dayNum, subject, topic, type, checked) {
+      const dayKey = `day_${dayNum}`;
+      const isExtra = (state.extras[dayKey] || []).some(e => e.subject === subject && e.topic === topic);
+
+      if (isExtra) {
+        const extras = state.extras[dayKey];
+        const extra = extras.find(e => e.subject === subject && e.topic === topic);
+        if (extra) {
+          if (type === 'video') {
+            extra.videoChecked = checked;
+            extra.videoTime = checked ? new Date().toISOString() : null;
+            if (!checked) {
+              extra.soruChecked = false;
+              extra.soruTime = null;
+              logAction(dayNum, subject, topic, 'soru_undone');
+            }
+          } else {
+            extra.soruChecked = checked;
+            extra.soruTime = checked ? new Date().toISOString() : null;
+          }
+        }
+      } else {
+        if (!state.progress[dayKey]) state.progress[dayKey] = {};
+        const key = `${subject}|${topic}|${type}`;
+        if (checked) {
+          state.progress[dayKey][key] = true;
+          state.progress[dayKey][`${key}_time`] = new Date().toISOString();
+        } else {
+          delete state.progress[dayKey][key];
+          delete state.progress[dayKey][`${key}_time`];
+          if (type === 'video') {
+            const sKey = `${subject}|${topic}|soru`;
+            if (state.progress[dayKey][sKey]) {
+              delete state.progress[dayKey][sKey];
+              delete state.progress[dayKey][`${sKey}_time`];
+              logAction(dayNum, subject, topic, 'soru_undone');
+            }
+          }
+        }
+      }
+
+      logAction(dayNum, subject, topic, `${type}_${checked ? 'done' : 'undone'}`);
+      updateStreak();
+      saveState();
+
+      // Audio feedback
+      if (checked) {
+        playCheckSound();
+      } else {
+        playUncheckSound();
+      }
+
+      // Targeted UI updates
+      renderTodayView();
+      overviewNeedsRender = true;
+
+      // If day modal is open for this day, re-render it
+      const modal = document.getElementById('day-modal');
+      if (!modal.classList.contains('hidden')) {
+        const scrollContainer = modal.querySelector('.overflow-y-auto');
+        const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+        openDayModal(dayNum);
+        requestAnimationFrame(() => {
+          const newContainer = modal.querySelector('.overflow-y-auto');
+          if (newContainer) newContainer.scrollTop = scrollTop;
+        });
+      }
+
+      // Check celebrations
+      if (checked) {
+        checkCelebrations(dayNum, subject);
+      }
+    }
+
+    function changeActiveDay(delta) {
+      const newDay = state.activeDay + delta;
+      if (newDay < 1 || newDay > 40) return;
+      state.activeDay = newDay;
+      saveState();
+      renderTodayView();
+    }
+
+    function handleAddExtraTopic(subject) {
+      const input = document.getElementById(`extra-input-${slugify(subject)}`);
+      const topic = input.value.trim();
+      if (!topic) return;
+
+      const dayNum = state.activeDay;
+      const dayKey = `day_${dayNum}`;
+      if (!state.extras[dayKey]) state.extras[dayKey] = [];
+      state.extras[dayKey].push({
+        subject,
+        topic,
+        videoChecked: false,
+        videoTime: null,
+        soruChecked: false,
+        soruTime: null
+      });
+      saveState();
+      renderTodayView();
+      overviewNeedsRender = true;
+    }
+
+    function checkCelebrations(dayNum, subject) {
+      // Check subject completion
+      const dayData = CAMP_DATA.find(d => d.day === dayNum);
+      const extras = state.extras[`day_${dayNum}`] || [];
+      const allSubjectTasks = [
+        ...(dayData ? dayData.tasks.filter(t => t.subject === subject) : []),
+        ...extras.filter(e => e.subject === subject)
+      ];
+      const subjectComplete = allSubjectTasks.every(t => getTopicStatus(dayNum, t.subject, t.topic).fullyComplete);
+      if (subjectComplete && allSubjectTasks.length > 0) {
+        const cardId = `subject-card-${dayNum}-${slugify(subject)}`;
+        const card = document.getElementById(cardId);
+        if (card) {
+          card.classList.add('subject-sparkle');
+          setTimeout(() => card.classList.remove('subject-sparkle'), 1200);
+        }
+        playSubjectCompleteSound();
+      }
+
+      // Check day completion
+      const allTasks = [...(dayData ? dayData.tasks : []), ...extras];
+      const dayComplete = allTasks.every(t => getTopicStatus(dayNum, t.subject, t.topic).fullyComplete);
+      if (dayComplete && allTasks.length > 0) {
+        showConfetti();
+        playDayCompleteSound();
+        const banner = document.getElementById('celebration-banner');
+        banner.textContent = 'Gün Tamamlandı! 🎉';
+        banner.classList.remove('hidden');
+        banner.classList.add('show');
+        setTimeout(() => {
+          banner.classList.remove('show');
+          setTimeout(() => banner.classList.add('hidden'), 600);
+        }, 3000);
+      }
+    }
+
+    // ==================== CONFETTI ====================
+    function showConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.display = 'block';
+
+      const colors = ['#4f8ef7', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#f43f5e', '#06b6d4'];
+      const particles = [];
+      for (let i = 0; i < 120; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 18,
+          vy: (Math.random() - 0.5) * 18 - 6,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: Math.random() * 6 + 3,
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10,
+          life: 100 + Math.random() * 40
+        });
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        particles.forEach(p => {
+          if (p.life > 0) {
+            alive = true;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.25;
+            p.vx *= 0.99;
+            p.life--;
+            p.rotation += p.rotSpeed;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = Math.min(1, p.life / 30);
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+            ctx.restore();
+          }
+        });
+        if (alive) {
+          requestAnimationFrame(animate);
+        } else {
+          canvas.style.display = 'none';
+        }
+      }
+      animate();
+    }
+
+    // ==================== SETTINGS ====================
+    function openSettings() {
+      document.getElementById('settings-modal').classList.remove('hidden');
+      if (state.startDate) {
+        document.getElementById('settings-start-date').value = state.startDate;
+      }
+    }
+
+    function closeSettings() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    }
+
+    function handleChangeStartDate() {
+      const newDate = document.getElementById('settings-start-date').value;
+      if (!newDate) return;
+      state.startDate = newDate;
+      saveState();
+      closeSettings();
+      init();
+    }
+
+    function handleResetProgress() {
+      if (!confirm('Tüm ilerleme verileriniz silinecek. Emin misiniz?')) return;
+      state.progress = {};
+      state.log = [];
+      state.streak = { current: 0, best: 0, lastActiveDate: null };
+      state.extras = {};
+      saveState();
+      closeSettings();
+      init();
+    }
+
+    function handleFullReset() {
+      if (!confirm('Tüm verileriniz kalıcı olarak silinecek. Emin misiniz?')) return;
+      if (!confirm('Bu işlem geri alınamaz. Devam etmek istiyor musunuz?')) return;
+      Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+      state = { startDate: null, progress: {}, log: [], streak: { current: 0, best: 0, lastActiveDate: null }, extras: {} };
+      closeSettings();
+      init();
+    }
+
+    // ==================== EVENT DELEGATION ====================
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('task-checkbox')) {
+        const day = parseInt(e.target.dataset.day);
+        const subject = e.target.dataset.subject;
+        const topic = e.target.dataset.topic;
+        const type = e.target.dataset.type;
+        handleCheck(day, subject, topic, type, e.target.checked);
+      }
+    });
+
+    // ==================== INITIALIZATION ====================
+    function init() {
+      loadState();
+
+      if (!state.startDate) {
+        showOnboarding();
+        return;
+      }
+
+      const dayNum = getTodayDayNumber();
+      if (dayNum < 1) {
+        showCountdown();
+      } else if (dayNum > 40) {
+        showCompletion();
+      } else {
+        showMainApp();
+        renderTodayView();
+        // Ensure today view is active
+        switchView('today');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
